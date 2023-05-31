@@ -12,7 +12,13 @@ class TicTacToe:
         self.current_player = 'X' 
         self.current_winner = None
         self.game_history = []
-        
+
+    def reset(self):
+        self.board = [' ' for _ in range(9)]
+        self.current_player = 'X' 
+        self.current_winner = None
+        self.game_history = []
+
     def print_board(self):
         print('--------------------')
         for i in range(3):
@@ -125,21 +131,21 @@ def trainAI(games_to_train, showGraph = False):
         "alpha": 0.5,
         "gamma": 0.9,
         "epsilon": 1.0,
-        "min_epsilon": 0.0,
+        "min_epsilon": 0.01,
         "epsilon_decay": 0.999
     }
 
     t = TicTacToe()
     q_learning = QLearning(t,params)
-
     x_player = Player('X', q_learning)
-    o_player = Player('O', q_learning)
+    o_player = Player('O', q_learning)  
 
     x_wins = [0] * games_to_train
     o_wins = [0] * games_to_train
     ties = [0] * games_to_train
 
-    for i in range(games_to_train):        
+    for i in range(games_to_train):
+        t.reset()
         game_history = play_for_training(t, x_player, o_player)
 
         if t.current_winner == 'X':
@@ -171,7 +177,7 @@ def trainAI(games_to_train, showGraph = False):
     print('ties:', sum(ties))
 
     if(showGraph):
-        window_size = 10
+        window_size = 1000
         x_win_rate = [sum(x_wins[i-window_size:i]) / window_size for i in range(window_size, len(x_wins))]
         o_win_rate = [sum(o_wins[i-window_size:i]) / window_size for i in range(window_size, len(o_wins))]
         ties_rate = [sum(ties[i-window_size:i]) / window_size for i in range(window_size, len(ties))]
@@ -218,19 +224,20 @@ def playHuman():
         "min_epsilon": 0,
         "epsilon_decay": 0
     }
-    t = TicTacToe()
+    
+    t = TicTacToe()  # Initialize a new game here
     q_learning = QLearning(t,params)
     computer_player = Player('O', q_learning)
-    
-
-    if human_player.letter == 'X':
-        computer_player.q_table = q_learning.load("q_table_o.pkl")
-    else:
-        computer_player.q_table = q_learning.load("q_table_x.pkl")
-
-    print(computer_player.q_table)
 
     while True:
+        t.reset()    
+        if human_player.letter == 'X':
+            computer_player.q_table = q_learning.load("q_table_o.pkl")
+        else:
+            computer_player.q_table = q_learning.load("q_table_x.pkl")
+
+        print(computer_player.q_table)
+
         play(t, human_player, computer_player, print_game=True)
         answer = input("Do you want to play again? (Y/N): ")
         if answer.lower() != 'y':
@@ -239,13 +246,16 @@ def playHuman():
 def main():
     parser = argparse.ArgumentParser(description='Tic Tac Toe game.')
     parser.add_argument('--trainAI', help='Train the AI.', action='store_true')
+    parser.add_argument('--t', help='Train the AI.', action='store_true')
     parser.add_argument('--showGraph', help='Show the training graph.', action='store_true')
+    parser.add_argument('--g', help='Show the training graph.', action='store_true')
 
     games_to_train = 10000
 
     args = parser.parse_args()
-    if args.trainAI:
-        trainAI(games_to_train, args.showGraph)
+    if args.trainAI or args.t:
+        showGraph = args.showGraph or args.g
+        trainAI(games_to_train, showGraph)
     else:
         playHuman()
 
