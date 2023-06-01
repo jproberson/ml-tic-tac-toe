@@ -44,17 +44,20 @@ class TicTacToe:
         return ''.join(self.board)
     
     def check_draw(self):
-        return ' ' not in self.board and self.current_winner is None
+        if ' ' not in self.board and self.current_winner is None:
+            self.current_winner = 'Draw'
+            return True
+        return False
 
-    def make_move(self, square, letter):
+    def update_state(self, action):
+        state = self.get_state()
+        self.game_history.append((state, action, None))
+        self.current_player = 'O' if self.current_player == 'X' else 'X'
+        return state
+
+    def make_move(self, square):
         if self.is_valid_move(square):
-            self.board[square] = letter
-            if self.check_win(letter):
-                self.current_winner = letter
-            elif self.check_draw():
-                self.current_winner = 'Draw'
-            else:
-                self.current_player = 'O' if self.current_player == 'X' else 'X'
+            self.board[square] = self.current_player
         else:
             raise ValueError(f"Invalid move {square}!")
 
@@ -67,11 +70,11 @@ class TicTacToe:
 
         for combination in win_combinations:
             if self.board[combination[0]] == self.board[combination[1]] == self.board[combination[2]] == letter:
+                self.current_winner = letter
                 return True
         return False
 
 def play(game, x_player, o_player, print_game=True):
-    game_history = []
     player = x_player
 
     while game.empty_squares():
@@ -81,64 +84,76 @@ def play(game, x_player, o_player, print_game=True):
 
         action = player.get_move(game)
 
-        game.make_move(action, player.letter)
-        game_history.append((game.get_state(), action, None))
-
-        if game.current_winner:
+        game.make_move(action)
+        
+        if game.check_win(player.letter) or game.check_draw():
             clear_screen()
             game.print_board()
             break
 
+        game.update_state(action)
         player = o_player if player == x_player else x_player
-
-    if print_game:
-        if game.current_winner == 'Draw':
-            print("It's a draw.")
-        else:
-            print(f"{game.current_winner} has won!")
-
-    return game_history
+    
+    if game.current_winner == 'X':
+        print("X has won the game!")
+    elif game.current_winner == 'O':
+        print("O has won the game!")
+    else:
+        print("The game ended in a draw!")
 
 def play_for_training(game, x_player, o_player):
-    reward_mapping = { 'Win': 50, 'Loss': -100, 'Draw': 25, 'NonLosingMove': -5 }
+    reward_mapping = { 'Win': 40, 'Loss': -100, 'Draw': 30, 'NonLosingMove': -1 }
     game_history = []
+
     while game.empty_squares():
-        if game.current_player == 'X':
-            action = x_player.get_move(game)
-        else:
-            action = o_player.get_move(game)
+        action = x_player.get_move(game) if game.current_player == 'X' else o_player.get_move(game)
 
-        game.make_move(action, game.current_player)
-        state = game.get_state()
+        game.make_move(action)
 
-        game_history.append((state, action, None, game.current_player))
+        if game.check_win(game.current_player):
+            game.current_winner = game.current_player
+        elif game.check_draw():
+            game.current_winner = 'Draw'
+
+        if game.current_winner is not None:
+            break
+
+        state = game.update_state(action)
+        game_history.append((state, action, reward_mapping['NonLosingMove'], game.current_player))
 
     reward = None
     if game.current_winner == 'X':
-        reward = reward_mapping['Win']
+        reward = reward_mapping['Win'] if x_player.letter == 'X' else reward_mapping['Loss']
     elif game.current_winner == 'O':
-        reward = reward_mapping['Loss']
+        reward = reward_mapping['Win'] if o_player.letter == 'O' else reward_mapping['Loss']
     elif game.current_winner == 'Draw':
         reward = reward_mapping['Draw']
+    else:
+        reward = reward_mapping['NonLosingMove']
 
-    for i in range(len(game_history)):
-        game_history[i] = game_history[i][:2] + (reward,) + game_history[i][3:]
+    game_history[-1] = game_history[-1][:2] + (reward,) + game_history[-1][3:]
 
     return game_history
 
+
 def trainAI(games_to_train, showGraph = False):
     params = {
-        "alpha": 0.5,
+        "alpha": 0.4,
         "gamma": 0.9,
         "epsilon": 1.0,
         "min_epsilon": 0.01,
-        "epsilon_decay": 0.999
+        "epsilon_decay": 0.999999
     }
 
     t = TicTacToe()
-    q_learning = QLearning(t,params)
-    x_player = Player('X', q_learning)
-    o_player = Player('O', q_learning)  
+    x_player = Player('X')
+    o_player = Player('O')
+
+    x_learning = QLearning(x_player, t, params)
+    o_learning = QLearning(o_player, t, params)
+
+    x_player.learning_algorithm = x_learning
+    o_player.learning_algorithm = o_learning
 
     x_wins = [0] * games_to_train
     o_wins = [0] * games_to_train
@@ -171,10 +186,6 @@ def trainAI(games_to_train, showGraph = False):
             pickle.dump(o_player.learning_algorithm.q_table, f)
     except Exception as e:
         print("An error occurred while writing the Q-tables: ", e)
-
-    print('x wins:', sum(x_wins))
-    print('o wins:', sum(o_wins))
-    print('ties:', sum(ties))
 
     if(showGraph):
         window_size = 1000
@@ -213,6 +224,17 @@ def trainAI(games_to_train, showGraph = False):
         plt.tight_layout()
         plt.show()
 
+        print('x wins:', sum(x_wins))
+        print('o wins:', sum(o_wins))
+        print('ties:', sum(ties))
+
+        print('X player made', x_player.random_moves_counter, 'random moves and', x_player.learned_moves_counter, 'learned moves.')
+        print('O player made', o_player.random_moves_counter, 'random moves and', o_player.learned_moves_counter, 'learned moves.')    
+
+        print('Slope of the trend line for X-player win rate:', x_fit[0])
+        print('Slope of the trend line for O-player win rate:', o_fit[0])
+        print('Slope of the trend line for tie rate:', ties_fit[0])
+
     return x_player, o_player
 
 def playHuman():
@@ -226,8 +248,9 @@ def playHuman():
     }
     
     t = TicTacToe()  # Initialize a new game here
-    q_learning = QLearning(t,params)
-    computer_player = Player('O', q_learning)
+    computer_player = Player('O')
+    q_learning = QLearning(computer_player, t,params)
+    computer_player.learning_algorithm = q_learning
 
     while True:
         t.reset()    
@@ -250,7 +273,7 @@ def main():
     parser.add_argument('--showGraph', help='Show the training graph.', action='store_true')
     parser.add_argument('--g', help='Show the training graph.', action='store_true')
 
-    games_to_train = 10000
+    games_to_train = 250000
 
     args = parser.parse_args()
     if args.trainAI or args.t:

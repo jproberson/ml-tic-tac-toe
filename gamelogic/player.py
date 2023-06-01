@@ -4,7 +4,8 @@ class Player(ABC):
     def __init__(self, letter, learning_algorithm=None):
         self.letter = letter
         self.learning_algorithm = learning_algorithm
-
+        self.random_moves_counter = 0
+        self.learned_moves_counter = 0
     def get_move(self, game):
         return self.learning_algorithm.predict(game.get_state())
 

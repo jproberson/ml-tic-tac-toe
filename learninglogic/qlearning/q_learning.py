@@ -3,7 +3,7 @@ from learning_algorithm import LearningAlgorithm
 import pickle
 
 class QLearning(LearningAlgorithm):
-    def __init__(self, game, params):
+    def __init__(self, player, game, params):
         super().__init__(game,params)
         self.alpha = params.get('alpha', 0.5)
         self.gamma = params.get('gamma', 0.9)
@@ -12,6 +12,7 @@ class QLearning(LearningAlgorithm):
         self.min_epsilon = params.get('min_epsilon', 0.01)
         self.epsilon_decay = params.get('epsilon_decay', 0.999)
         self.q_table = {}
+        self.player = player
 
     def train(self, game_history, current_game_index):
         for i in range(len(game_history)):
@@ -27,10 +28,12 @@ class QLearning(LearningAlgorithm):
 
     def predict(self, game_state):
         legal_moves = self.game.available_moves()
-        print(self.epsilon)
+        
         if np.random.random() < self.epsilon:  # Explore
+            self.player.random_moves_counter += 1
             return int(np.random.choice(legal_moves))
         else:  # Exploit
+            self.player.learned_moves_counter += 1
             q_values_of_state = self.q_table.get(game_state, {})
             q_values_of_legal_moves = {action: q_values_of_state.get(action, 0) for action in legal_moves}
 
