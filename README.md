@@ -76,5 +76,3 @@ Dueling Q Learning (Dueling DQN): This variant of DQN explicitly separates the r
 Advantage Actor-Critic (A2C/A3C) Algorithms: These methods are policy-based but also use a value function to reduce variance. A2C/A3C algorithms have separate policy and value function networks, and they update both networks simultaneously, which makes them more stable and less likely to converge to suboptimal policies.
 
 Proximal Policy Optimization (PPO): PPO is a policy optimization method that's simple to implement, has little hyperparameter tuning, and offers good performance. It's an on-policy method and it's more sample-efficient than the A2C/A3C algorithms.
-# ml-tic-tac-toe
-# ml-tic-tac-toe
