@@ -1,4 +1,4 @@
-# README
+# Incomplete - Learning exercise
 
 ## Tic-Tac-Toe Q-Learning (Quality Learning)
 
